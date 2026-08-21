@@ -1,0 +1,232 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String         @map("password_hash")
+  name         String
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  businesses   UserBusiness[]
+
+  @@map("users")
+}
+
+model Business {
+  id             String          @id @default(uuid())
+  name           String
+  ownerId        String          @map("owner_id")
+  phone          String?
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  users          UserBusiness[]
+  customers      Customer[]
+  conversations  Conversation[]
+  orders         Order[]
+  tasks          Task[]
+  reviewItems    ReviewItem[]
+  whatsAppConfig WhatsAppConfig?
+
+  @@map("businesses")
+}
+
+model UserBusiness {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  businessId String   @map("business_id")
+  role       String   @default("STAFF")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, businessId])
+  @@index([businessId])
+  @@map("user_businesses")
+}
+
+model WhatsAppConfig {
+  id                String   @id @default(uuid())
+  businessId        String   @unique @map("business_id")
+  phoneNumberId     String?  @map("phone_number_id")
+  businessAccountId String?  @map("business_account_id")
+  verifyToken       String?  @map("verify_token")
+  isConnected       Boolean  @default(false) @map("is_connected")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("whatsapp_configs")
+}
+
+model Customer {
+  id             String         @id @default(uuid())
+  businessId     String         @map("business_id")
+  name           String?
+  phoneNumber    String         @map("phone_number")
+  email          String?
+  address        String?
+  notes          String?
+  firstContactAt DateTime       @default(now()) @map("first_contact_at")
+  lastContactAt  DateTime       @default(now()) @map("last_contact_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  orders        Order[]
+  tasks         Task[]
+  reviewItems   ReviewItem[]
+
+  @@unique([businessId, phoneNumber])
+  @@index([businessId])
+  @@index([phoneNumber])
+  @@map("customers")
+}
+
+model Conversation {
+  id                     String    @id @default(uuid())
+  businessId             String    @map("business_id")
+  customerId             String    @map("customer_id")
+  channel                String    @default("whatsapp")
+  externalConversationId String?   @map("external_conversation_id")
+  status                 String    @default("ACTIVE")
+  lastMessageAt          DateTime  @default(now()) @map("last_message_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  messages    Message[]
+  orders      Order[]
+  tasks       Task[]
+  reviewItems ReviewItem[]
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id                String    @id @default(uuid())
+  conversationId    String    @map("conversation_id")
+  direction         String
+  sender            String
+  messageType       String    @default("TEXT") @map("message_type")
+  text              String?
+  externalMessageId String?   @unique @map("external_message_id")
+  timestamp         DateTime  @default(now())
+  aiProcessed       Boolean   @default(false) @map("ai_processed")
+  aiConfidence      Float?    @map("ai_confidence")
+  aiIntent          String?   @map("ai_intent")
+  aiEntities        String?   @map("ai_entities")
+  rawPayload        String    @map("raw_payload")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  reviewItem   ReviewItem?
+
+  @@index([conversationId])
+  @@index([timestamp])
+  @@map("messages")
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  businessId      String      @map("business_id")
+  customerId      String      @map("customer_id")
+  conversationId  String?     @map("conversation_id")
+  orderNumber     String      @map("order_number")
+  status          String      @default("NEW")
+  totalAmount     Float?      @map("total_amount")
+  paymentMethod   String?     @map("payment_method")
+  deliveryAddress String?     @map("delivery_address")
+  notes           String?
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  items        OrderItem[]
+
+  @@unique([businessId, orderNumber])
+  @@index([businessId])
+  @@index([customerId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String   @map("order_id")
+  productName String   @map("product_name")
+  quantity    Int      @default(1)
+  unitPrice   Float?   @map("unit_price")
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model Task {
+  id             String    @id @default(uuid())
+  businessId     String    @map("business_id")
+  customerId     String?   @map("customer_id")
+  conversationId String?   @map("conversation_id")
+  title          String
+  description    String?
+  dueAt          DateTime? @map("due_at")
+  status         String    @default("PENDING")
+  priority       String    @default("MEDIUM")
+  source         String    @default("ai_extracted")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer     Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([status])
+  @@index([dueAt])
+  @@map("tasks")
+}
+
+model ReviewItem {
+  id             String    @id @default(uuid())
+  businessId     String    @map("business_id")
+  conversationId String    @map("conversation_id")
+  messageId      String    @unique @map("message_id")
+  customerId     String?   @map("customer_id")
+  reviewType     String    @map("review_type")
+  suggestedData  String    @map("suggested_data")
+  status         String    @default("PENDING")
+  confidence     Float
+  reviewerNotes  String?   @map("reviewer_notes")
+  resolvedAt     DateTime? @map("resolved_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  business     Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message      Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([businessId])
+  @@index([status])
+  @@map("review_items")
+}
