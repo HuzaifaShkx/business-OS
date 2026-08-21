@@ -71,7 +71,7 @@ export class WhatsAppController {
         businessAccountId: config?.businessAccountId || '',
         verifyToken: config?.verifyToken || env.WHATSAPP_VERIFY_TOKEN,
         isConnected: config?.isConnected || false,
-        webhookUrl: `${req.protocol}://${req.get('host')}/api/webhooks/whatsapp`,
+        webhookUrl: `${env.BACKEND_URL || (req.protocol + '://' + req.get('host'))}/api/webhooks/whatsapp`,
       });
     } catch (error) {
       next(error);

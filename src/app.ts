@@ -18,7 +18,7 @@ export const app = express();
 // Security Headers & CORS
 app.use(helmet());
 app.use(cors({
-  origin: [env.CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: [env.CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'https://generous-connection-production-287a.up.railway.app'].filter(Boolean),
   credentials: true,
 }));
 
