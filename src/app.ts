@@ -15,11 +15,29 @@ import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 
 export const app = express();
 
-// Security Headers & CORS
-app.use(helmet());
+// Security Headers
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+}));
+
+// CORS Configuration - Permissive for all origins with credentials & 200 preflight
 app.use(cors({
-  origin: [env.CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'https://generous-connection-production-287a.up.railway.app'].filter(Boolean),
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like curl, mobile apps, Postman)
+    if (!origin) return callback(null, true);
+    return callback(null, true);
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  optionsSuccessStatus: 200,
+}));
+
+// Explicit Preflight Handler
+app.options('*', cors({
+  origin: (origin, callback) => callback(null, true),
+  credentials: true,
+  optionsSuccessStatus: 200,
 }));
 
 // Body Parsers
