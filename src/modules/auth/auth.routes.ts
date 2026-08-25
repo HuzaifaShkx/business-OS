@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
@@ -20,6 +21,15 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  newPassword: z.string().min(6),
 });
 
 export class AuthController {
@@ -129,6 +139,59 @@ export class AuthController {
     }
   }
 
+  async forgotPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email } = req.body;
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        return sendSuccess(res, { message: 'If this email exists, a reset code has been generated.' });
+      }
+      await prisma.passwordResetToken.updateMany({
+        where: { userId: user.id, used: false },
+        data: { used: true },
+      });
+      const token = crypto.randomBytes(4).toString('hex').toUpperCase();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+      await prisma.passwordResetToken.create({
+        data: { userId: user.id, token, expiresAt },
+      });
+      return sendSuccess(res, {
+        resetCode: token,
+        expiresInMinutes: 15,
+      }, 'Reset code generated');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resetPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { token, newPassword } = req.body;
+      const resetToken = await prisma.passwordResetToken.findUnique({
+        where: { token: token.toUpperCase() },
+        include: { user: true },
+      });
+      if (!resetToken || resetToken.used) {
+        throw new BadRequestError('Invalid or already used reset code.');
+      }
+      if (new Date() > resetToken.expiresAt) {
+        throw new BadRequestError('Reset code has expired. Please request a new one.');
+      }
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await prisma.user.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash },
+      });
+      await prisma.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { used: true },
+      });
+      return sendSuccess(res, null, 'Password reset successfully. You can now log in.');
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async me(req: Request, res: Response, next: NextFunction) {
     try {
       const user = await prisma.user.findUnique({
@@ -166,3 +229,5 @@ const authController = new AuthController();
 authRouter.post('/auth/register', validateRequest({ body: registerSchema }), (req, res, next) => authController.register(req, res, next));
 authRouter.post('/auth/login', validateRequest({ body: loginSchema }), (req, res, next) => authController.login(req, res, next));
 authRouter.get('/auth/me', requireAuth, (req, res, next) => authController.me(req, res, next));
+authRouter.post('/auth/forgot-password', validateRequest({ body: forgotPasswordSchema }), (req, res, next) => authController.forgotPassword(req, res, next));
+authRouter.post('/auth/reset-password', validateRequest({ body: resetPasswordSchema }), (req, res, next) => authController.resetPassword(req, res, next));
