@@ -88,11 +88,15 @@ export class WhatsAppController {
         where: { businessId },
       });
 
+      const effectiveToken = config?.accessToken || env.WHATSAPP_ACCESS_TOKEN || '';
+
       return sendSuccess(res, {
         phoneNumberId: config?.phoneNumberId || '',
         businessAccountId: config?.businessAccountId || '',
+        accessToken: effectiveToken,
+        hasAccessToken: Boolean(effectiveToken),
         verifyToken: config?.verifyToken || env.WHATSAPP_VERIFY_TOKEN,
-        isConnected: config?.isConnected || false,
+        isConnected: Boolean(config?.phoneNumberId && (config?.accessToken || env.WHATSAPP_ACCESS_TOKEN)),
         webhookUrl: `${env.BACKEND_URL || (req.protocol + '://' + req.get('host'))}/api/webhooks/whatsapp`,
       });
     } catch (error) {
@@ -104,28 +108,42 @@ export class WhatsAppController {
   async updateSettings(req: Request, res: Response, next: NextFunction) {
     try {
       const businessId = req.businessId!;
-      const { phoneNumberId, businessAccountId, verifyToken } = req.body;
+      const { phoneNumberId, businessAccountId, accessToken, verifyToken } = req.body;
+
+      const cleanPhoneId = phoneNumberId ? String(phoneNumberId).trim() : null;
+      const cleanWabaId = businessAccountId ? String(businessAccountId).trim() : null;
+      const cleanAccessToken = accessToken ? String(accessToken).trim() : undefined;
+      const cleanVerifyToken = verifyToken ? String(verifyToken).trim() : env.WHATSAPP_VERIFY_TOKEN;
+      const isConnected = Boolean(cleanPhoneId && (cleanAccessToken || env.WHATSAPP_ACCESS_TOKEN));
+
+      logger.info(`Saving WhatsApp config - PhoneId: ${cleanPhoneId}, HasToken: ${Boolean(cleanAccessToken)}, WABA: ${cleanWabaId}`);
 
       const updated = await prisma.whatsAppConfig.upsert({
         where: { businessId },
         update: {
-          phoneNumberId,
-          businessAccountId,
-          verifyToken: verifyToken ? String(verifyToken).trim() : env.WHATSAPP_VERIFY_TOKEN,
-          isConnected: Boolean(phoneNumberId && businessAccountId),
+          phoneNumberId: cleanPhoneId,
+          businessAccountId: cleanWabaId,
+          ...(cleanAccessToken !== undefined ? { accessToken: cleanAccessToken } : {}),
+          verifyToken: cleanVerifyToken,
+          isConnected,
         },
         create: {
           businessId,
-          phoneNumberId,
-          businessAccountId,
-          verifyToken: verifyToken ? String(verifyToken).trim() : env.WHATSAPP_VERIFY_TOKEN,
-          isConnected: Boolean(phoneNumberId && businessAccountId),
+          phoneNumberId: cleanPhoneId,
+          businessAccountId: cleanWabaId,
+          accessToken: cleanAccessToken || null,
+          verifyToken: cleanVerifyToken,
+          isConnected,
         },
       });
+
+      logger.info(`WhatsApp config saved. isConnected: ${updated.isConnected}`);
 
       return sendSuccess(res, {
         phoneNumberId: updated.phoneNumberId,
         businessAccountId: updated.businessAccountId,
+        accessToken: updated.accessToken || '',
+        verifyToken: updated.verifyToken,
         isConnected: updated.isConnected,
       }, 'WhatsApp configuration updated successfully');
     } catch (error) {
