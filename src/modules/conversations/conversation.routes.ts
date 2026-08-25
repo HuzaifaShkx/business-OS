@@ -124,7 +124,6 @@ export class ConversationController {
 export const conversationRouter = Router();
 const conversationController = new ConversationController();
 
-conversationRouter.use(requireAuth);
-conversationRouter.get('/conversations', (req, res, next) => conversationController.list(req, res, next));
-conversationRouter.get('/conversations/:id', (req, res, next) => conversationController.getById(req, res, next));
-conversationRouter.post('/conversations/:id/messages', (req, res, next) => conversationController.sendMessage(req, res, next));
+conversationRouter.get('/conversations', requireAuth, (req, res, next) => conversationController.list(req, res, next));
+conversationRouter.get('/conversations/:id', requireAuth, (req, res, next) => conversationController.getById(req, res, next));
+conversationRouter.post('/conversations/:id/messages', requireAuth, (req, res, next) => conversationController.sendMessage(req, res, next));

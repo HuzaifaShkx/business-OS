@@ -8,17 +8,39 @@ import { sendSuccess } from '../../common/utils/response.js';
 
 export class WhatsAppController {
   // GET /api/webhooks/whatsapp - Meta Verification Handshake
-  verifyWebhook(req: Request, res: Response) {
+  async verifyWebhook(req: Request, res: Response) {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
-    if (mode === 'subscribe' && token === env.WHATSAPP_VERIFY_TOKEN) {
-      logger.info('Meta WhatsApp Webhook successfully verified');
+    if (mode !== 'subscribe' || !token) {
+      logger.warn('Meta Webhook verification missing required parameters');
+      return res.status(400).json({ error: 'Missing hub.mode or hub.verify_token' });
+    }
+
+    const tokenStr = String(token).trim();
+
+    // Check against env token OR any business in database that has this verifyToken
+    const isEnvMatch = Boolean(env.WHATSAPP_VERIFY_TOKEN && tokenStr === env.WHATSAPP_VERIFY_TOKEN.trim());
+    
+    let isDbMatch = false;
+    try {
+      const config = await prisma.whatsAppConfig.findFirst({
+        where: { verifyToken: tokenStr },
+      });
+      if (config) {
+        isDbMatch = true;
+      }
+    } catch (e) {
+      logger.error('Error checking verifyToken in database:', e);
+    }
+
+    if (isEnvMatch || isDbMatch) {
+      logger.info('Meta WhatsApp Webhook successfully verified with token: ' + tokenStr);
       return res.status(200).send(challenge);
     }
 
-    logger.warn('Meta Webhook verification failed. Tokens did not match.');
+    logger.warn('Meta Webhook verification failed. Received token: ' + tokenStr);
     return res.status(403).json({ error: 'Verification token mismatch' });
   }
 
@@ -89,14 +111,14 @@ export class WhatsAppController {
         update: {
           phoneNumberId,
           businessAccountId,
-          verifyToken,
+          verifyToken: verifyToken ? String(verifyToken).trim() : env.WHATSAPP_VERIFY_TOKEN,
           isConnected: Boolean(phoneNumberId && businessAccountId),
         },
         create: {
           businessId,
           phoneNumberId,
           businessAccountId,
-          verifyToken,
+          verifyToken: verifyToken ? String(verifyToken).trim() : env.WHATSAPP_VERIFY_TOKEN,
           isConnected: Boolean(phoneNumberId && businessAccountId),
         },
       });

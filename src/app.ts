@@ -57,14 +57,14 @@ app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', time: new Date().toISOString(), env: env.NODE_ENV });
 });
 
-// API Routes
+// API Routes - Webhook & WhatsApp routes mounted FIRST so public endpoints are never blocked
+app.use('/api', whatsAppRouter);
 app.use('/api', authRouter);
 app.use('/api', customerRouter);
 app.use('/api', conversationRouter);
 app.use('/api', orderRouter);
 app.use('/api', taskRouter);
 app.use('/api', reviewRouter);
-app.use('/api', whatsAppRouter);
 app.use('/api', dashboardRouter);
 
 // Centralized Error Handling

@@ -91,5 +91,4 @@ export class DashboardController {
 export const dashboardRouter = Router();
 const dashboardController = new DashboardController();
 
-dashboardRouter.use(requireAuth);
-dashboardRouter.get('/dashboard/overview', (req, res, next) => dashboardController.getOverview(req, res, next));
+dashboardRouter.get('/dashboard/overview', requireAuth, (req, res, next) => dashboardController.getOverview(req, res, next));

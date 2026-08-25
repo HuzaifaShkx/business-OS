@@ -212,8 +212,7 @@ export class ReviewController {
 export const reviewRouter = Router();
 const reviewController = new ReviewController();
 
-reviewRouter.use(requireAuth);
-reviewRouter.get('/reviews', (req, res, next) => reviewController.list(req, res, next));
-reviewRouter.post('/reviews/:id/approve', (req, res, next) => reviewController.approve(req, res, next));
-reviewRouter.post('/reviews/:id/reject', (req, res, next) => reviewController.reject(req, res, next));
-reviewRouter.post('/reviews/:id/edit', (req, res, next) => reviewController.editAndApprove(req, res, next));
+reviewRouter.get('/reviews', requireAuth, (req, res, next) => reviewController.list(req, res, next));
+reviewRouter.post('/reviews/:id/approve', requireAuth, (req, res, next) => reviewController.approve(req, res, next));
+reviewRouter.post('/reviews/:id/reject', requireAuth, (req, res, next) => reviewController.reject(req, res, next));
+reviewRouter.post('/reviews/:id/edit', requireAuth, (req, res, next) => reviewController.editAndApprove(req, res, next));

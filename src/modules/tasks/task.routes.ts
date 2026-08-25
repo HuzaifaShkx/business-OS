@@ -99,7 +99,6 @@ export class TaskController {
 export const taskRouter = Router();
 const taskController = new TaskController();
 
-taskRouter.use(requireAuth);
-taskRouter.get('/tasks', (req, res, next) => taskController.list(req, res, next));
-taskRouter.post('/tasks', (req, res, next) => taskController.create(req, res, next));
-taskRouter.patch('/tasks/:id', (req, res, next) => taskController.update(req, res, next));
+taskRouter.get('/tasks', requireAuth, (req, res, next) => taskController.list(req, res, next));
+taskRouter.post('/tasks', requireAuth, (req, res, next) => taskController.create(req, res, next));
+taskRouter.patch('/tasks/:id', requireAuth, (req, res, next) => taskController.update(req, res, next));

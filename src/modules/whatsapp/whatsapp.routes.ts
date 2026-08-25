@@ -6,7 +6,7 @@ import { requireAuth } from '../../common/middleware/auth.middleware.js';
 export const whatsAppRouter = Router();
 
 // Public Meta Webhook Endpoints
-whatsAppRouter.get('/webhooks/whatsapp', (req, res) => whatsAppController.verifyWebhook(req, res));
+whatsAppRouter.get('/webhooks/whatsapp', (req, res, next) => whatsAppController.verifyWebhook(req, res).catch(next));
 whatsAppRouter.post('/webhooks/whatsapp', (req, res, next) => whatsAppController.receiveWebhook(req, res, next));
 
 // Protected Settings Endpoints

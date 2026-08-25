@@ -133,7 +133,6 @@ export class CustomerController {
 export const customerRouter = Router();
 const customerController = new CustomerController();
 
-customerRouter.use(requireAuth);
-customerRouter.get('/customers', (req, res, next) => customerController.list(req, res, next));
-customerRouter.get('/customers/:id', (req, res, next) => customerController.getById(req, res, next));
-customerRouter.patch('/customers/:id', (req, res, next) => customerController.update(req, res, next));
+customerRouter.get('/customers', requireAuth, (req, res, next) => customerController.list(req, res, next));
+customerRouter.get('/customers/:id', requireAuth, (req, res, next) => customerController.getById(req, res, next));
+customerRouter.patch('/customers/:id', requireAuth, (req, res, next) => customerController.update(req, res, next));

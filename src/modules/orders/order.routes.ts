@@ -150,8 +150,7 @@ export class OrderController {
 export const orderRouter = Router();
 const orderController = new OrderController();
 
-orderRouter.use(requireAuth);
-orderRouter.get('/orders', (req, res, next) => orderController.list(req, res, next));
-orderRouter.get('/orders/:id', (req, res, next) => orderController.getById(req, res, next));
-orderRouter.post('/orders', (req, res, next) => orderController.create(req, res, next));
-orderRouter.patch('/orders/:id', (req, res, next) => orderController.updateStatus(req, res, next));
+orderRouter.get('/orders', requireAuth, (req, res, next) => orderController.list(req, res, next));
+orderRouter.get('/orders/:id', requireAuth, (req, res, next) => orderController.getById(req, res, next));
+orderRouter.post('/orders', requireAuth, (req, res, next) => orderController.create(req, res, next));
+orderRouter.patch('/orders/:id', requireAuth, (req, res, next) => orderController.updateStatus(req, res, next));
