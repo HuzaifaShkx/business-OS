@@ -1,3 +1,4 @@
+import { env } from '../../config/env.js';
 import { prisma } from '../../config/database.js';
 import { aiService } from '../ai/ai.service.js';
 import { NormalizedIncomingMessage, normalizePhoneNumber } from './whatsapp.normalizer.js';
@@ -210,6 +211,54 @@ export class WhatsAppService {
       createdTaskId,
       createdReviewId,
     };
+  }
+
+  /**
+   * Dispatches live outbound message via Meta WhatsApp Cloud API if configured.
+   */
+  async sendOutboundMessage(to: string, text: string, businessId: string): Promise<boolean> {
+    try {
+      const config = await prisma.whatsAppConfig.findUnique({
+        where: { businessId },
+      });
+
+      const token = config?.accessToken || env.WHATSAPP_ACCESS_TOKEN;
+      const phoneId = config?.phoneNumberId || env.WHATSAPP_PHONE_NUMBER_ID;
+
+      if (!token || !phoneId) {
+        logger.info(`Outbound message recorded locally (No Meta Cloud API Token configured for business ${businessId})`);
+        return false;
+      }
+
+      const cleanPhone = to.replace(/\D/g, '');
+
+      const response = await fetch(`https://graph.facebook.com/${env.WHATSAPP_API_VERSION || 'v20.0'}/${phoneId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'text',
+          text: { preview_url: false, body: text },
+        }),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.text();
+        logger.error(`Meta Cloud API error sending message to ${cleanPhone}:`, errBody);
+        return false;
+      }
+
+      logger.info(`Live WhatsApp message dispatched successfully to ${cleanPhone}`);
+      return true;
+    } catch (err) {
+      logger.error('Error dispatching WhatsApp outbound message:', err);
+      return false;
+    }
   }
 }
 

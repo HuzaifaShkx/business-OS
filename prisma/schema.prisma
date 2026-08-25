@@ -57,6 +57,7 @@ model WhatsAppConfig {
   businessId        String   @unique @map("business_id")
   phoneNumberId     String?  @map("phone_number_id")
   businessAccountId String?  @map("business_account_id")
+  accessToken       String?  @map("access_token")
   verifyToken       String?  @map("verify_token")
   isConnected       Boolean  @default(false) @map("is_connected")
   createdAt         DateTime @default(now()) @map("created_at")

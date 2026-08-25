@@ -1,3 +1,4 @@
+import { whatsAppService } from '../whatsapp/whatsapp.service.js';
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/database.js';
 import { sendSuccess } from '../../common/utils/response.js';
@@ -113,6 +114,13 @@ export class ConversationController {
         where: { id: conversation.id },
         data: { lastMessageAt: new Date() },
       });
+
+      // Dispatch to Meta WhatsApp Cloud API in background if phone exists
+      if (conversation.customer?.phoneNumber) {
+        whatsAppService.sendOutboundMessage(conversation.customer.phoneNumber, text, businessId).catch((err) => {
+          console.error('Failed to send live WhatsApp message:', err);
+        });
+      }
 
       return sendSuccess(res, message, 'Message sent successfully', 201);
     } catch (error) {
